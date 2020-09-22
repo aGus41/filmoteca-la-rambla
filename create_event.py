@@ -8,6 +8,7 @@ from google.auth.transport.requests import Request
 
 import requests
 from bs4 import BeautifulSoup
+import pprint
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
@@ -47,7 +48,7 @@ def main():
 
     movie_dates = []
     for i in range(2,len(code_dates)):
-        movie_dates.append(code_dates[i].text.strip())
+        movie_dates.append(code_dates[i].text.strip().replace("\xa0",''))
 
 
     titles = soup.find_all('div', {'class': 'n module-type-textWithImage diyfeLiveArea'})
@@ -57,22 +58,28 @@ def main():
     for i in range(len(titles)):
         text = titles[i].find_all('p')
         for line in text:
-            if line.text == '\xa0':
+            if line.text == '\xa0' or line.text == 'Sinopsis:':
                 continue
-            lines.append(line.text)
+            lines.append(line.text.replace('\n',' '))
+
+    pp = pprint.PrettyPrinter(indent=4)
 
     # Stores list in triples 
     movie_texts = [lines[i:i + 3] for i in range(0, len(lines), 3)]
     
     keys = ['movie_title', 'genre', 'synopsis']
+    
     # Generate a list of dicts
     dict_movies = [dict(zip(keys, l)) for l in movie_texts]
-   
+
+    # print(movie_dates)
+    # pp.pprint(dict_movies)
+    
     for i in range(len(movie_dates)):
         event = {
           'summary': '🎬 ' + dict_movies[i]['movie_title'],
           'location': 'Cines La Rambla, Av. de los Príncipes de España, 0, 28821 Coslada, Madrid',
-          'description': dict_movies[i]['genre'] + '\nhttps://www.cineslarambla.es/filmoteca/',
+          'description': dict_movies[i]['genre'] + '\n' + dict_movies[i]['synopsis'] + '\nhttps://www.cineslarambla.es/filmoteca/',
           'start': {
             'date': str_to_date(movie_dates[i])
                     },
@@ -83,7 +90,7 @@ def main():
           }
 
 
-        event = service.events().insert(calendarId='calendarid', body=event).execute()
+        event = service.events().insert(calendarId='calendarId', body=event).execute()
 
 def str_to_date(date):
     date = date.split(' ')
